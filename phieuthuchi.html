@@ -11,6 +11,27 @@
             src: local('Times New Roman');
         }
 
+        /* Simple checkbox size increase */
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Áp dụng font cho toàn bộ phần in */
+        #printSection,
+        #printContainer,
+        .print-preview {
+            font-family: 'Times New Roman', serif !important;
+            font-size: 14px !important;
+            /* Tăng từ 13px lên 14px */
+        }
+
+        /* Đảm bảo tất cả các phần tử con cũng sử dụng Times New Roman */
+        #printSection *,
+        #printContainer * {
+            font-family: 'Times New Roman', serif !important;
+        }
+
         @page {
             size: A5 landscape;
             margin: 0;
@@ -37,12 +58,8 @@
             }
 
             .receipt-content {
-                font-size: 12px;
+                font-size: 14px;
                 line-height: 1.5;
-            }
-
-            .receipt-footer {
-                margin-top: 15px;
             }
 
             body * {
@@ -100,25 +117,24 @@
             }
         }
 
+        /* Điều chỉnh kích thước cho từng phần */
         .receipt-header {
-            font-size: 13px;
-            line-height: 1.3;
+            font-size: 14px !important;
         }
 
         .receipt-title {
-            font-size: 16px;
+            font-size: 20px !important;
             font-weight: bold;
-            text-transform: uppercase;
         }
 
         .receipt-content {
-            font-size: 13px;
-            line-height: 1.5;
+            font-size: 16px !important;
+            line-height: 1.5 !important;
         }
 
         .receipt-footer {
-            font-size: 13px;
-            margin-top: 15px;
+            font-size: 14px !important;
+            margin-top: 10px;
         }
 
         .signature-line {
@@ -141,6 +157,9 @@
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold">Phiếu thu chi</h1>
             <div class="flex gap-2">
+                <input type="text" id="searchInput" placeholder="Search..."
+                    class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    oninput="handleSearch()">
                 <button onclick="printSelectedRows()"
                     class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -153,30 +172,9 @@
             </div>
         </div>
 
-        <div class="mb-4 flex justify-between items-center">
-            <div class="flex gap-4">
-                <input type="text" id="searchInput" placeholder="Search..."
-                    class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    oninput="handleSearch()">
-            </div>
-            <div class="flex items-center gap-2">
-                <select id="recordsPerPage"
-                    class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onchange="handleRecordsPerPageChange()">
-                    <option value="10">10 dòng</option>
-                    <option value="25">25 dòng</option>
-                    <option value="50">50 dòng</option>
-                    <option value="100">100 dòng</option>
-                </select>
-                <div id="pagination" class="flex gap-2"></div>
-            </div>
-        </div>
 
-        <div id="loading" class="hidden">
-            <div class="flex items-center justify-center p-4">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
-        </div>
+
+
 
         <div id="error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4"></div>
 
@@ -205,6 +203,29 @@
                 </tbody>
             </table>
         </div>
+
+        <div id="loading" class="hidden">
+            <div class="flex items-center justify-center p-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+        </div>
+
+
+        <div class="mt-4 flex justify-between items-center">
+            <div class="flex gap-4">
+            </div>
+            <div class="flex items-center gap-2">
+                <select id="recordsPerPage"
+                    class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onchange="handleRecordsPerPageChange()">
+                    <option value="10">10 dòng</option>
+                    <option value="25">25 dòng</option>
+                    <option value="50">50 dòng</option>
+                    <option value="100">100 dòng</option>
+                </select>
+                <div id="pagination" class="flex gap-2"></div>
+            </div>
+        </div>
     </div>
 
     <!-- Print Template -->
@@ -212,7 +233,7 @@
         <div class="receipt-header">
             <div class="flex justify-between">
                 <div>
-                    <p class="font-medium">Công ty TNHH tư vấn đào tạo Hùng Khang</p>
+                    <p class="font-bold">Công ty TNHH tư vấn đào tạo Hùng Khang</p>
                     <p style="max-width: 400px;">Thửa đất 906, Tờ bản đồ 25, Đường ĐT 746, Kp Khánh Thành, P. Tân Phước
                         Khánh, TX. Tân Uyên, T. Bình Dương</p>
                 </div>
@@ -239,25 +260,25 @@
             <p>Kèm theo <span id="printHoaDonDiKem"></span> chứng từ gốc</p>
         </div>
 
-        <div class="receipt-footer flex justify-between text-center" style="margin-top: 40px;">
+        <div class="receipt-footer flex justify-between text-center">
             <div class="signature-line">
-                <p>Giám đốc</p>
+                <p class="font-bold">Giám đốc</p>
                 <p style="margin-top: 70px;">Nguyễn Hùng</p>
             </div>
             <div class="signature-line">
-                <p>Kế toán trưởng</p>
+                <p class="font-bold">Kế toán trưởng</p>
                 <p style="margin-top: 70px;"></p>
             </div>
             <div class="signature-line">
-                <p>Người <span id="payerType2">nộp</span> tiền</p>
+                <p class="font-bold">Người <span id="payerType2">nộp</span> tiền</p>
                 <p style="margin-top: 70px;"><span id="printTenKHNCC_2"></span></p>
             </div>
             <div class="signature-line">
-                <p>Người lập phiếu</p>
+                <p class="font-bold">Người lập phiếu</p>
                 <p style="margin-top: 70px;">Lê Thị Mai Kha</p>
             </div>
             <div class="signature-line">
-                <p>Thủ quỹ</p>
+                <p class="font-bold">Thủ quỹ</p>
                 <p style="margin-top: 70px;">Nguyễn Thị Minh Tuyền</p>
             </div>
         </div>
