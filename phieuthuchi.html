@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>Thu chi</title>
+    <style>
+        @font-face {
+            font-family: 'Times New Roman';
+            src: local('Times New Roman');
+        }
+
+        @page {
+            size: A5 landscape;
+            margin: 0;
+        }
+
+        @media print {
+
+            html,
+            body {
+                width: 210mm;
+                height: 148mm;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+            }
+
+            .print-preview {
+                width: 210mm;
+                height: 148mm;
+                padding: 15mm;
+                margin: 0;
+                page-break-inside: avoid;
+                box-sizing: border-box;
+            }
+
+            .receipt-content {
+                font-size: 12px;
+                line-height: 1.5;
+            }
+
+            .receipt-footer {
+                margin-top: 15px;
+            }
+
+            body * {
+                visibility: hidden;
+            }
+
+            #printContainer,
+            #printContainer * {
+                visibility: visible;
+            }
+
+            #printSection {
+                display: none;
+            }
+
+            #printContainer>div {
+                position: relative;
+                break-after: page;
+                width: 210mm;
+                height: 148mm;
+                padding: 15mm;
+                margin: 0;
+                page-break-inside: avoid;
+                box-sizing: border-box;
+            }
+
+            #printContainer>div:last-child {
+                break-after: auto;
+            }
+
+            #mainContent {
+                display: none !important;
+            }
+
+            #printSection,
+            #printSection * {
+                visibility: visible;
+            }
+
+            #printSection {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm;
+                height: 148mm;
+                padding: 15mm;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .page-break-after {
+                page-break-after: always;
+            }
+        }
+
+        .receipt-header {
+            font-size: 13px;
+            line-height: 1.3;
+        }
+
+        .receipt-title {
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .receipt-content {
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .receipt-footer {
+            font-size: 13px;
+            margin-top: 15px;
+        }
+
+        .signature-line {
+            text-align: center;
+            width: 20%;
+        }
+
+        .print-preview {
+            width: 210mm;
+            height: 148mm;
+            padding: 15mm;
+            margin: 0 auto;
+            background: white;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 p-6">
+    <div id="mainContent" class="max-w-10xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Phiếu thu chi</h1>
+            <div class="flex gap-2">
+                <button onclick="printSelectedRows()"
+                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                        </path>
+                    </svg>
+                    In đã chọn
+                </button>
+            </div>
+        </div>
+
+        <div class="mb-4 flex justify-between items-center">
+            <div class="flex gap-4">
+                <input type="text" id="searchInput" placeholder="Search..."
+                    class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    oninput="handleSearch()">
+            </div>
+            <div class="flex items-center gap-2">
+                <select id="recordsPerPage"
+                    class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onchange="handleRecordsPerPageChange()">
+                    <option value="10">10 dòng</option>
+                    <option value="25">25 dòng</option>
+                    <option value="50">50 dòng</option>
+                    <option value="100">100 dòng</option>
+                </select>
+                <div id="pagination" class="flex gap-2"></div>
+            </div>
+        </div>
+
+        <div id="loading" class="hidden">
+            <div class="flex items-center justify-center p-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+        </div>
+
+        <div id="error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4"></div>
+
+        <div class="overflow-x-auto rounded-lg shadow">
+            <table class="min-w-full bg-white">
+                <thead>
+                    <tr class="bg-gray-100 border-b">
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">
+                            <input type="checkbox" id="selectAll" class="form-checkbox"
+                                onchange="toggleAllCheckboxes(this)">
+                        </th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">Ngày chứng từ</th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">Số chứng từ</th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">Diễn giải</th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">TK ghi nợ</th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">TK ghi có</th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">Số tiền phát sinh</th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">PT thuế suất</th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">Tiền thuế</th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">Tên KH - NCC</th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700 hidden">Địa chỉ</th>
+                        <th class="px-2 py-3 text-left text-sm font-semibold text-gray-700">Hóa đơn đi kèm</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="divide-y divide-gray-200">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Print Template -->
+    <div id="printSection" class="hidden print-preview">
+        <div class="receipt-header">
+            <div class="flex justify-between">
+                <div>
+                    <p class="font-medium">Công ty TNHH tư vấn đào tạo Hùng Khang</p>
+                    <p style="max-width: 400px;">Thửa đất 906, Tờ bản đồ 25, Đường ĐT 746, Kp Khánh Thành, P. Tân Phước
+                        Khánh, TX. Tân Uyên, T. Bình Dương</p>
+                </div>
+                <div class="text-right">
+                    <p>Số: <span id="printSoChungTu"></span></p>
+                    <p>Nợ: <span id="printNo"></span></p>
+                    <p>Có: <span id="printCo"></span></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center my-4">
+            <p id="receiptTitle" class="receipt-title">PHIẾU THU</p>
+            <p class="mt-2">Ngày <span id="printNgay"></span> tháng <span id="printThang"></span> năm <span
+                    id="printNam"></span></p>
+        </div>
+
+        <div class="receipt-content">
+            <p>Họ và tên người <span id="payerType">nộp</span> tiền: <span id="printTenKHNCC"></span></p>
+            <p>Địa chỉ: <span id="printDiaChi"></span></p>
+            <p>Lý do <span id="reasonType">thu</span>: <span id="printDienGiai"></span></p>
+            <p>Số tiền: <span id="printSoTien"></span></p>
+            <p>Viết bằng chữ: <span id="printSoTienBangChu"></span></p>
+            <p>Kèm theo <span id="printHoaDonDiKem"></span> chứng từ gốc</p>
+        </div>
+
+        <div class="receipt-footer flex justify-between text-center" style="margin-top: 40px;">
+            <div class="signature-line">
+                <p>Giám đốc</p>
+                <p style="margin-top: 70px;">Nguyễn Hùng</p>
+            </div>
+            <div class="signature-line">
+                <p>Kế toán trưởng</p>
+                <p style="margin-top: 70px;"></p>
+            </div>
+            <div class="signature-line">
+                <p>Người <span id="payerType2">nộp</span> tiền</p>
+                <p style="margin-top: 70px;"><span id="printTenKHNCC_2"></span></p>
+            </div>
+            <div class="signature-line">
+                <p>Người lập phiếu</p>
+                <p style="margin-top: 70px;">Lê Thị Mai Kha</p>
+            </div>
+            <div class="signature-line">
+                <p>Thủ quỹ</p>
+                <p style="margin-top: 70px;">Nguyễn Thị Minh Tuyền</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const appId = '8f5e9e4a-7e7c-4837-9685-7d12952e0c21';
+        const accessKey = 'V2-UYCP8-hUIOF-Nu9kh-QnF9t-zxgIo-Y2eKN-NwV5T-rxf9p';
+        const region = 'www';
+
+        let allData = [];
+        let currentPage = 1;
+        let recordsPerPage = 10;
+        let filteredData = [];
+
+        function toggleAllCheckboxes(source) {
+            const checkboxes = document.getElementsByName('recordSelect');
+            for (let checkbox of checkboxes) {
+                checkbox.checked = source.checked;
+            }
+        }
+
+        function handleSearch() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            filteredData = allData.filter(record => {
+                return Object.values(record).some(value =>
+                    value && value.toString().toLowerCase().includes(searchTerm)
+                );
+            });
+            currentPage = 1;
+            updateTable();
+            updatePagination();
+        }
+
+        function handleRecordsPerPageChange() {
+            recordsPerPage = parseInt(document.getElementById('recordsPerPage').value);
+            currentPage = 1;
+            updateTable();
+            updatePagination();
+        }
+
+        function updatePagination() {
+            const totalPages = Math.ceil(filteredData.length / recordsPerPage);
+            const paginationElement = document.getElementById('pagination');
+            paginationElement.innerHTML = '';
+
+            if (currentPage > 1) {
+                const prevButton = document.createElement('button');
+                prevButton.className = 'px-3 py-1 rounded-lg border hover:bg-gray-100';
+                prevButton.textContent = '←';
+                prevButton.onclick = () => {
+                    currentPage--;
+                    updateTable();
+                    updatePagination();
+                };
+                paginationElement.appendChild(prevButton);
+            }
+
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                    const pageButton = document.createElement('button');
+                    pageButton.className = `px-3 py-1 rounded-lg border ${i === currentPage ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'}`;
+                    pageButton.textContent = i;
+                    pageButton.onclick = () => {
+                        currentPage = i;
+                        updateTable();
+                        updatePagination();
+                    };
+                    paginationElement.appendChild(pageButton);
+                } else if (i === currentPage - 3 || i === currentPage + 3) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'px-3 py-1';
+                    ellipsis.textContent = '...';
+                    paginationElement.appendChild(ellipsis);
+                }
+            }
+
+            if (currentPage < totalPages) {
+                const nextButton = document.createElement('button');
+                nextButton.className = 'px-3 py-1 rounded-lg border hover:bg-gray-100';
+                nextButton.textContent = '→';
+                nextButton.onclick = () => {
+                    currentPage++;
+                    updateTable();
+                    updatePagination();
+                };
+                paginationElement.appendChild(nextButton);
+            }
+        }
+
+        function updateTable() {
+            const tableBody = document.getElementById('tableBody');
+            const start = (currentPage - 1) * recordsPerPage;
+            const end = start + recordsPerPage;
+            const pageData = filteredData.slice(start, end);
+
+            tableBody.innerHTML = '';
+
+            pageData.forEach(record => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+
+                row.innerHTML = `
+                    <td class="px-2 py-4 text-sm text-gray-800">
+                        <input type="checkbox" name="recordSelect" class="form-checkbox" data-mact="${record.Ma_CT || ''}">
+                    </td>
+                    <td class="px-2 py-4 text-sm text-gray-800">${record.Ngay_chung_tu || ''}</td>
+                    <td class="px-2 py-4 text-sm text-gray-800">${record.So_chung_tu || ''}</td>
+                    <td class="px-2 py-4 text-sm text-gray-800">${record.Dien_giai || ''}</td>
+                    <td class="px-2 py-4 text-sm text-gray-800">${record.TK_ghi_no || ''}</td>
+                    <td class="px-2 py-4 text-sm text-gray-800">${record.TK_ghi_co || ''}</td>
+                    <td class="px-2 py-4 text-sm text-gray-800">${formatCurrency(record.So_tien_phat_sinh_VND) || ''}</td>
+                    <td class="px-2 py-4 text-sm text-gray-800">${record.PT_Thue_suat * 100 || '0'} %</td>
+                    <td class="px-2 py-4 text-sm text-gray-800">${formatCurrency(record.Tien_thue) || ''}</td>
+                    <td class="px-2 py-4 text-sm text-gray-800">${record.Ten_KH_NCC || ''}</td>
+                    <td class="px-2 py-4 text-sm text-gray-800 hidden">${record.Dia_chi || ''}</td>
+                    <td class="px-2 py-4 text-sm text-gray-800">${record.Hoa_don_di_kem || ''}</td>
+                `;
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        function numberToWords(number) {
+            const units = ["", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
+            const positions = ["", "nghìn", "triệu", "tỷ"];
+
+            if (number === 0) return "không";
+
+            function readGroup(group) {
+                let result = "";
+                let hundreds = Math.floor(group / 100);
+                let tens = Math.floor((group % 100) / 10);
+                let ones = group % 10;
+
+                if (hundreds > 0) {
+                    result += units[hundreds] + " trăm ";
+                }
+
+                if (tens === 0 && ones > 0 && hundreds > 0) {
+                    result += "lẻ ";
+                }
+
+                if (tens === 1) {
+                    result += "mười ";
+                } else if (tens > 1) {
+                    result += units[tens] + " mươi ";
+                }
+
+                if (ones > 0) {
+                    if (tens >= 2 && ones === 1) {
+                        result += "mốt";
+                    } else if (tens >= 1 && ones === 5) {
+                        result += "lăm";
+                    } else {
+                        result += units[ones];
+                    }
+                }
+
+                return result.trim();
+            }
+
+            let result = "";
+            let groups = [];
+            let temp = Math.abs(number);
+
+            while (temp > 0) {
+                groups.push(temp % 1000);
+                temp = Math.floor(temp / 1000);
+            }
+
+            for (let i = groups.length - 1; i >= 0; i--) {
+                if (groups[i] > 0) {
+                    result += readGroup(groups[i]) + " " + positions[i] + " ";
+                }
+            }
+
+            result = result.trim() + " đồng";
+            return result.charAt(0).toUpperCase() + result.slice(1);
+        }
+
+        function formatCurrency(amount) {
+            if (!amount) return '';
+            let strAmount = amount.toString().replace(/[^\d]/g, '');
+            strAmount = strAmount.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            return strAmount + " đ";
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return {
+                day: date.getDate(),
+                month: date.getMonth() + 1,
+                year: date.getFullYear()
+            };
+        }
+
+        function apiRequest(tableName, action, data) {
+            const apiUrl = `https://${region}.appsheet.com/api/v2/apps/${appId}/tables/${tableName}/Action`;
+            return $.ajax({
+                url: apiUrl,
+                method: 'POST',
+                headers: {
+                    'ApplicationAccessKey': accessKey,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    Action: action,
+                    Properties: {
+                        Locale: 'vi-VN',
+                        Timezone: 'Asia/Ho_Chi_Minh'
+                    },
+                    ...data
+                })
+            });
+        }
+
+        function printSelectedRows() {
+            const selectedCheckboxes = document.querySelectorAll('input[name="recordSelect"]:checked');
+            if (selectedCheckboxes.length === 0) {
+                alert('Vui lòng chọn ít nhất một dòng để in');
+                return;
+            }
+
+            const printContainer = document.createElement('div');
+            printContainer.id = 'printContainer';
+            printContainer.style.position = 'absolute';
+            printContainer.style.left = '0';
+            printContainer.style.top = '0';
+
+            document.body.appendChild(printContainer);
+
+            selectedCheckboxes.forEach((checkbox, index) => {
+                const row = checkbox.closest('tr');
+                const data = {
+                    ngayChungTu: row.cells[1].textContent,
+                    soChungTu: row.cells[2].textContent,
+                    dienGiai: row.cells[3].textContent,
+                    TK_ghi_no: row.cells[4].textContent,
+                    TK_ghi_co: row.cells[5].textContent,
+                    soTien: parseFloat(row.cells[6].textContent.replace(/[^0-9.-]+/g, "")),
+                    tenKHNCC: row.cells[9].textContent,
+                    Dia_chi: row.cells[10].textContent,
+                    hoaDonDiKem: row.cells[11].textContent,
+                    Ma_CT: checkbox.getAttribute('data-mact')
+                };
+
+                const date = formatDate(data.ngayChungTu);
+                const hoaDonCount = data.hoaDonDiKem ? data.hoaDonDiKem.split(';').length : 0;
+
+                const printSection = document.getElementById('printSection').cloneNode(true);
+                printSection.id = `printSection_${index}`;
+                printSection.classList.remove('hidden');
+
+                if (index < selectedCheckboxes.length - 1) {
+                    printSection.classList.add('page-break-after');
+                }
+
+                // Set receipt type based on Ma_CT
+                const isPhieuChi = data.Ma_CT === 'PC';
+                printSection.querySelector('#receiptTitle').textContent = isPhieuChi ? 'PHIẾU CHI' : 'PHIẾU THU';
+
+                // Update payer/receiver text
+                const payerTypes = printSection.querySelectorAll('#payerType, #payerType2');
+                payerTypes.forEach(el => {
+                    el.textContent = isPhieuChi ? 'nhận' : 'nộp';
+                });
+
+                // Update reason type text
+                printSection.querySelector('#reasonType').textContent = isPhieuChi ? 'chi' : 'thu';
+
+                const elements = {
+                    'printSoChungTu': data.soChungTu,
+                    'printNo': data.TK_ghi_no,
+                    'printCo': data.TK_ghi_co,
+                    'printNgay': date.day,
+                    'printThang': date.month,
+                    'printNam': date.year,
+                    'printTenKHNCC': data.tenKHNCC,
+                    'printDiaChi': data.Dia_chi,
+                    'printDienGiai': data.dienGiai,
+                    'printSoTien': formatCurrency(data.soTien),
+                    'printSoTienBangChu': numberToWords(data.soTien),
+                    'printHoaDonDiKem': hoaDonCount,
+                    'printTenKHNCC_2': data.tenKHNCC
+                };
+
+                Object.entries(elements).forEach(([id, value]) => {
+                    const element = printSection.querySelector(`#${id}`);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                });
+
+                printContainer.appendChild(printSection);
+            });
+
+            window.print();
+            document.body.removeChild(printContainer);
+        }
+
+        async function fetchData() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+
+            try {
+                loading.classList.remove('hidden');
+                error.classList.add('hidden');
+
+                const response = await apiRequest('NhapLieu', 'Find', {
+                    Filters: []
+                });
+
+                if (Array.isArray(response)) {
+                    allData = response.filter(record =>
+                        record.Ma_CT === "PC" || record.Ma_CT === "PT"
+                    );
+                    filteredData = [...allData];
+                    updateTable();
+                    updatePagination();
+                } else {
+                    throw new Error('Invalid response format from API');
+                }
+            } catch (err) {
+                console.error('Detailed error:', err);
+                error.textContent = 'Error loading data: ' + err.message;
+                error.classList.remove('hidden');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchData);
+    </script>
+</body>
+
+</html>
